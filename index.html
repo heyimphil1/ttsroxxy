@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Your Page</title>
+    <style>
+      /* Apply CSS to make the website blank */
+      body {
+        background-color: white;
+      }
+
+      #audio {
+        visibility: hidden;
+      }
+
+      #gif {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 140px;
+        height: 128px;
+        object-fit: cover;
+        display: none; /* Initially hide the WebP image */
+      }
+    </style>
+  </head>
+  <body>
+    <div id="view"></div>
+
+    <audio id="audio" controls autoplay>
+      <source id="source" type="audio/wav" />
+    </audio>
+
+    <img
+      id="gif"
+      src="https://cdn.7tv.app/emote/62eef67a100e949373b420d1/4x.webp"
+      alt="Your WebP Image"
+    />
+
+    <!-- Include axios script -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script>
+      let gif = document.getElementById("gif");
+      let audio = document.getElementById("audio");
+
+      async function playTTS(text) {
+        try {
+          let speak = await fetch(
+            "https://api.streamelements.com/kappa/v2/speech?voice=Brian&text=" +
+              encodeURIComponent(text.trim())
+          );
+
+          if (speak.status != 200) {
+            alert(await speak.text());
+            return;
+          }
+
+          let mp3 = await speak.blob();
+
+          let blobUrl = URL.createObjectURL(mp3);
+          document.getElementById("source").setAttribute("src", blobUrl);
+          audio.pause();
+          audio.load();
+          audio.play();
+
+          gif.style.display = "block"; // Show the WebP image when audio starts playing
+          gif.style.animation = "gifAnimation 1s infinite";
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      audio.addEventListener("play", () => {
+        gif.style.display = "block"; // Show the WebP image when audio starts playing
+      });
+
+      audio.addEventListener("pause", () => {
+        gif.style.display = "none"; // Hide the WebP image when audio pauses
+      });
+
+      async function getChatMessages(url) {
+        try {
+          const response = await axios.get(url);
+          const jsonResponse = response.data;
+          for (let message of jsonResponse.events) {
+            const method = message["method"];
+            const object = message["object"];
+
+            if (method === "tip" && object["tip"]["tokens"] === 1) {
+              const messageText = object["tip"]["message"];
+              if (messageText && messageText.trim() !== "") {
+                console.log(messageText);
+                playTTS(messageText);
+              }
+            }
+          }
+          if (jsonResponse.nextUrl) {
+            getChatMessages(jsonResponse.nextUrl);
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      // Autoplay TTS audio when the page loads
+      window.addEventListener("DOMContentLoaded", () => {
+        const baseUrl =
+          "https://eventsapi.chaturbate.com/events/roxysuh/OOHgGf0fXja3KejfNThvhr0m/";
+        getChatMessages(baseUrl);
+      });
+    </script>
+  </body>
+</html>
